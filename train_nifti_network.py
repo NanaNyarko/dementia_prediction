@@ -8,6 +8,8 @@ import numpy as np
 from torchvision import transforms
 import nibabel as nib
 from PIL import Image
+from torch.utils.data import Dataset, DataLoader
+from torchvision.datasets import ImageFolder
 
 # Default dimensions of images
 img_depth, img_height, img_width = 256, 256, 256
@@ -22,6 +24,38 @@ epochs = 50
 # Batch size used by DataLoader
 batch_size = 16
 
+class NiftiDataset(Dataset):
+    def __init__(self, data_dir, transform=None):
+        self.data_dir = data_dir
+        self.transform = transform
+        self.file_paths = self._get_file_paths()
+
+    def _get_file_paths(self):
+        file_paths = []
+        for root, _, files in os.walk(self.data_dir):
+            for file in files:
+                if file.endswith('.nii'):
+                    file_paths.append(os.path.join(root, file))
+        return file_paths
+
+    def __len__(self):
+        return len(self.file_paths)
+
+    def __getitem__(self, idx):
+        file_path = self.file_paths[idx]
+        print("Loading file:", file_path)
+        img = nib.load(file_path)
+        img_data = np.array(img.dataobj)
+
+        # Normalize and scale the image data to [0, 1]
+        img_data = np.clip(img_data, np.min(img_data), np.max(img_data))
+        img_data = (img_data - np.min(img_data)) / (np.max(img_data) - np.min(img_data))
+
+        if self.transform:
+            img_data = self.transform(img_data)
+
+        return img_data
+      
 def save_bottleneck_features():
     # Load pre-trained ResNet50 model
     model = models.resnet50(weights=None)
@@ -84,23 +118,92 @@ def save_bottleneck_features():
     validation_features = extract_features(validation_data_dir)
     np.save(f"oasis_longitudinal_demographics_features_validation_{data_type}.npy", validation_features.numpy())
 
-def train_top_model():
-    transform = transforms.Compose([
-        transforms.Resize((img_height, img_width)),
-        transforms.ToTensor(),
-    ])
+# def train_top_model(train_loader, validation_loader):
+#     # Define the top model
+#     num_classes = 2  # Update this based on your dataset
+#     model = nn.Sequential(
+#         nn.AdaptiveAvgPool3d((1, 1, 1)),  # Pool across spatial dimensions
+#         nn.Flatten(),
+#         nn.Linear(256, 64),  # Adjust input size based on ResNet50 output
+#         nn.ReLU(),
+#         nn.Dropout(0.5),
+#         nn.Linear(64, num_classes),
+#         nn.Sigmoid(),
+#     )
 
+#     print("Model architecture:")
+#     print(model)
+
+#     criterion = nn.CrossEntropyLoss()
+#     optimizer = torch.optim.RMSprop(model.parameters())  # Corrected optimizer initialization
+
+#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#     model.to(device)
+
+#     history = {"train_loss": [], "val_loss": []}
+
+#     for epoch in range(epochs):
+#         model.train()
+#         running_loss = 0.0
+#         for inputs in train_loader:
+#             inputs = inputs.to(device)
+#             optimizer.zero_grad()
+
+#             print("Input shape before reshape:", inputs.shape)
+
+#             # Adjust the size of the input tensor
+#             inputs = inputs.view(inputs.size(0), inputs.size(1), -1)
+
+#             print("Input shape after reshape:", inputs.shape)
+
+#             outputs = model(inputs)
+#             # Placeholder labels (zeros)
+#             labels = torch.zeros(inputs.size(0), dtype=torch.long, device=device)
+#             loss = criterion(outputs, labels)
+#             loss.backward()
+#             optimizer.step()
+
+#             running_loss += loss.item()
+
+#         train_loss = running_loss / len(train_loader)
+#         history["train_loss"].append(train_loss)
+
+#         # Validation
+#         model.eval()
+#         val_loss = 0.0
+#         with torch.no_grad():
+#             for inputs in validation_loader:
+#                 inputs = inputs.to(device)
+
+#                 # Adjust the size of the input tensor
+#                 inputs = inputs.view(inputs.size(0), inputs.size(1), -1)
+
+#                 outputs = model(inputs)
+#                 # Placeholder labels (zeros)
+#                 labels = torch.zeros(inputs.size(0), dtype=torch.long, device=device)
+#                 loss = criterion(outputs, labels)
+#                 val_loss += loss.item()
+
+#         val_loss /= len(validation_loader)
+#         history["val_loss"].append(val_loss)
+
+#         print(f"Epoch {epoch + 1}/{epochs}: Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+
+def train_top_model(train_loader, validation_loader):
     # Define the top model
     num_classes = 2  # Update this based on your dataset
     model = nn.Sequential(
-        nn.AdaptiveAvgPool3d((1, 1, 1)),  # Adjust for the output size of ResNet50
+        nn.AdaptiveAvgPool3d((1, 1, 1)),  # Pool across spatial dimensions
         nn.Flatten(),
-        nn.Linear(2048, 256),  # Adjust input size based on ResNet50 output
+        nn.Linear(256 * 32768, 64),  # Adjust input size based on flattened size
         nn.ReLU(),
         nn.Dropout(0.5),
-        nn.Linear(256, num_classes),
+        nn.Linear(64, num_classes),
         nn.Sigmoid(),
     )
+
+    print("Model architecture:")
+    print(model)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.RMSprop(model.parameters())  # Corrected optimizer initialization
@@ -113,11 +216,16 @@ def train_top_model():
     for epoch in range(epochs):
         model.train()
         running_loss = 0.0
-        for inputs, labels in train_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
+        for inputs in train_loader:
+            inputs = inputs.to(device)
             optimizer.zero_grad()
 
+            # Adjust the size of the input tensor
+            inputs = inputs.view(inputs.size(0), inputs.size(1), -1)
+
             outputs = model(inputs)
+            # Placeholder labels (zeros)
+            labels = torch.zeros(inputs.size(0), dtype=torch.long, device=device)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -131,9 +239,15 @@ def train_top_model():
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
-            for inputs, labels in validation_loader:
-                inputs, labels = inputs.to(device), labels.to(device)
+            for inputs in validation_loader:
+                inputs = inputs.to(device)
+
+                # Adjust the size of the input tensor
+                inputs = inputs.view(inputs.size(0), inputs.size(1), -1)
+
                 outputs = model(inputs)
+                # Placeholder labels (zeros)
+                labels = torch.zeros(inputs.size(0), dtype=torch.long, device=device)
                 loss = criterion(outputs, labels)
                 val_loss += loss.item()
 
@@ -141,6 +255,8 @@ def train_top_model():
         history["val_loss"].append(val_loss)
 
         print(f"Epoch {epoch + 1}/{epochs}: Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -160,6 +276,17 @@ if __name__ == "__main__":
     validation_data_dir = os.path.join(validation_data_dir, data_type)
     top_model_weights_path = f"oasis_longitudinal_demographics_{data_type}.h5"
 
+     # Define transformations
+    transform = None  # You can define transformations if needed
+
+    # Create datasets and dataloaders
+    print(f"train_data_dir = '{train_data_dir}'")
+    train_dataset = NiftiDataset(train_data_dir, transform=transform)
+    validation_dataset = NiftiDataset(validation_data_dir, transform=transform)
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=batch_size)
+
     save_bottleneck_features()
-    train_top_model()
+    train_top_model(train_loader, validation_loader)
 
