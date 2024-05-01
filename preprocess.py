@@ -147,7 +147,7 @@ def build_no_dementia_folder(individual_file_path, output_type):
     os.makedirs(output_file_path, exist_ok=True)
     filename = os.path.basename(individual_file_path)
     new_file_path = os.path.join(output_file_path, filename)
-    shutil.move(individual_file_path, new_file_path)
+    shutil.move(individual_file_path, new_file_path) #I used move because I had space constraints. you can use copy to keep original folder structure
     print(f"Saved image {filename} to no_dementia folder in {model_type}.")
 
 
@@ -265,7 +265,8 @@ def check_against_csv(each, subfolder_name, subfolder_path):
                 print(record['ID'], subfolder_name, record['CDR'])
                 for filename in os.listdir(subfolder_path):
                     if check_is_img(filename):
-                        output_type = subfolder_name
+                        # output_type = subfolder_name
+                        output_type = "RAW" #hardcoded value to raw because i am currently working with only RAW 
                         individual_file_path = os.path.join(subfolder_path, filename)
                         record_cdr = float(record["CDR"]) if record["CDR"] else -10000
                         print(individual_file_path, record['CDR'])

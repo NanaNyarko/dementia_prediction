@@ -65,7 +65,7 @@ def save_bottleneck_features():
                     img_pil = Image.fromarray(img_slice, mode='L')  # Grayscale image (single channel)
                     # Convert Grayscale Image to RGB by Replicating Single Channel Across All Channels
                     img_pil = img_pil.convert('RGB')
-                    
+
                     # Apply preprocessing transformations
                     img_pil = img_pil.resize((img_width, img_height))
                     img_tensor = transforms.ToTensor()(img_pil)
@@ -79,10 +79,10 @@ def save_bottleneck_features():
 
 
     train_features = extract_features(train_data_dir)
-    np.save(f"oasis_cross-sectional_features_train_{data_type}.npy", train_features.numpy())
+    np.save(f"oasis_longitudinal_demographics_features_train_{data_type}.npy", train_features.numpy())
 
     validation_features = extract_features(validation_data_dir)
-    np.save(f"oasis_cross-sectional_features_validation_{data_type}.npy", validation_features.numpy())
+    np.save(f"oasis_longitudinal_demographics_features_validation_{data_type}.npy", validation_features.numpy())
 
 def train_top_model():
     transform = transforms.Compose([
@@ -103,7 +103,7 @@ def train_top_model():
     )
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optimize.RMSprop(model.parameters())
+    optimizer = torch.optim.RMSprop(model.parameters())  # Corrected optimizer initialization
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -158,7 +158,8 @@ if __name__ == "__main__":
 
     train_data_dir = os.path.join(train_data_dir, data_type)
     validation_data_dir = os.path.join(validation_data_dir, data_type)
-    top_model_weights_path = f"oasis_cross-sectional_{data_type}.h5"
+    top_model_weights_path = f"oasis_longitudinal_demographics_{data_type}.h5"
 
     save_bottleneck_features()
     train_top_model()
+

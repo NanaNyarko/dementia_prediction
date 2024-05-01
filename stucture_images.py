@@ -26,6 +26,6 @@ def move_files_up_and_suffix(source_dir):
             print(f"Removed empty directory '{raw_dir}'")
 
 if __name__ == "__main__":
-    source_dir = r"C:\Users\akosu\OneDrive - GLASGOW CALEDONIAN UNIVERSITY\Dissertation\Datasets\data\raw_train"
+    source_dir = r"C:\Users\akosu\OneDrive - GLASGOW CALEDONIAN UNIVERSITY\Dissertation\Datasets\data\raw_validation"
     
     move_files_up_and_suffix(source_dir)
