@@ -118,84 +118,13 @@ def save_bottleneck_features():
     validation_features = extract_features(validation_data_dir)
     np.save(f"oasis_longitudinal_demographics_features_validation_{data_type}.npy", validation_features.numpy())
 
-# def train_top_model(train_loader, validation_loader):
-#     # Define the top model
-#     num_classes = 2  # Update this based on your dataset
-#     model = nn.Sequential(
-#         nn.AdaptiveAvgPool3d((1, 1, 1)),  # Pool across spatial dimensions
-#         nn.Flatten(),
-#         nn.Linear(256, 64),  # Adjust input size based on ResNet50 output
-#         nn.ReLU(),
-#         nn.Dropout(0.5),
-#         nn.Linear(64, num_classes),
-#         nn.Sigmoid(),
-#     )
-
-#     print("Model architecture:")
-#     print(model)
-
-#     criterion = nn.CrossEntropyLoss()
-#     optimizer = torch.optim.RMSprop(model.parameters())  # Corrected optimizer initialization
-
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#     model.to(device)
-
-#     history = {"train_loss": [], "val_loss": []}
-
-#     for epoch in range(epochs):
-#         model.train()
-#         running_loss = 0.0
-#         for inputs in train_loader:
-#             inputs = inputs.to(device)
-#             optimizer.zero_grad()
-
-#             print("Input shape before reshape:", inputs.shape)
-
-#             # Adjust the size of the input tensor
-#             inputs = inputs.view(inputs.size(0), inputs.size(1), -1)
-
-#             print("Input shape after reshape:", inputs.shape)
-
-#             outputs = model(inputs)
-#             # Placeholder labels (zeros)
-#             labels = torch.zeros(inputs.size(0), dtype=torch.long, device=device)
-#             loss = criterion(outputs, labels)
-#             loss.backward()
-#             optimizer.step()
-
-#             running_loss += loss.item()
-
-#         train_loss = running_loss / len(train_loader)
-#         history["train_loss"].append(train_loss)
-
-#         # Validation
-#         model.eval()
-#         val_loss = 0.0
-#         with torch.no_grad():
-#             for inputs in validation_loader:
-#                 inputs = inputs.to(device)
-
-#                 # Adjust the size of the input tensor
-#                 inputs = inputs.view(inputs.size(0), inputs.size(1), -1)
-
-#                 outputs = model(inputs)
-#                 # Placeholder labels (zeros)
-#                 labels = torch.zeros(inputs.size(0), dtype=torch.long, device=device)
-#                 loss = criterion(outputs, labels)
-#                 val_loss += loss.item()
-
-#         val_loss /= len(validation_loader)
-#         history["val_loss"].append(val_loss)
-
-#         print(f"Epoch {epoch + 1}/{epochs}: Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-
-def train_top_model(train_loader, validation_loader):
+def train_top_model(train_loader, validation_loader, epochs=10):
     # Define the top model
     num_classes = 2  # Update this based on your dataset
     model = nn.Sequential(
         nn.AdaptiveAvgPool3d((1, 1, 1)),  # Pool across spatial dimensions
         nn.Flatten(),
-        nn.Linear(256 * 32768, 64),  # Adjust input size based on flattened size
+        nn.Linear(1, 16),  # Adjust input size based on flattened size
         nn.ReLU(),
         nn.Dropout(0.5),
         nn.Linear(64, num_classes),
@@ -220,9 +149,10 @@ def train_top_model(train_loader, validation_loader):
             inputs = inputs.to(device)
             optimizer.zero_grad()
 
-            # Adjust the size of the input tensor
-            inputs = inputs.view(inputs.size(0), inputs.size(1), -1)
-
+            # Reshape the input tensor
+            inputs = inputs.permute(0, 4, 1, 2, 3)  # Permute to match the expected shape
+            inputs = inputs.view(inputs.size(0), 1, inputs.size(2), inputs.size(3), inputs.size(4))
+            print(inputs)
             outputs = model(inputs)
             # Placeholder labels (zeros)
             labels = torch.zeros(inputs.size(0), dtype=torch.long, device=device)
@@ -242,8 +172,9 @@ def train_top_model(train_loader, validation_loader):
             for inputs in validation_loader:
                 inputs = inputs.to(device)
 
-                # Adjust the size of the input tensor
-                inputs = inputs.view(inputs.size(0), inputs.size(1), -1)
+                # Reshape the input tensor
+                inputs = inputs.permute(0, 4, 1, 2, 3)  # Permute to match the expected shape
+                inputs = inputs.view(inputs.size(0), 1, inputs.size(2), inputs.size(3), inputs.size(4))
 
                 outputs = model(inputs)
                 # Placeholder labels (zeros)
@@ -255,7 +186,6 @@ def train_top_model(train_loader, validation_loader):
         history["val_loss"].append(val_loss)
 
         print(f"Epoch {epoch + 1}/{epochs}: Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-
 
 
 if __name__ == "__main__":
