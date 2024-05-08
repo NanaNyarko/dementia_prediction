@@ -30,7 +30,9 @@ share/python-wheels/
 *.egg
 MANIFEST
 data/
+sample_data/
 *.pth
+*.npy
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

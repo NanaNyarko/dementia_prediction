@@ -86,13 +86,15 @@ def train_top_model():
         train_dataset.class_to_idx,
     )
 
+    print(num_classes)
+
     # Define the top model
     model = nn.Sequential(
         nn.Flatten(),
         nn.Linear(512 * 7 * 7, 256),
+        nn.Linear(256, num_classes),
         nn.ReLU(),
         nn.Dropout(0.5),
-        nn.Linear(256, num_classes),
         nn.Sigmoid(),
     )
 

@@ -2,10 +2,10 @@ import os
 import nibabel as nib
 
 # Input directory containing ".img" files
-input_dir = "data/validation/no_dementia_unconverted"
+input_dir = "data/train/potential_dementia_un"
 
 # Output directory for NIfTI files
-output_dir = "data/validation/no_dementia"
+output_dir = "data/train/potential_dementia"
 
 # Iterate over ".img" files in the input directory
 for filename in os.listdir(input_dir):
