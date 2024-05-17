@@ -7,23 +7,24 @@ Original file is located at
     https://colab.research.google.com/drive/1Ocq0o-vHbdnGrWRkJ2gv7cI1V-54ZJkz
 """
 
+
 import os
 import random
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
+#import tensorflow.keras
+import keras
 import tensorflow as tf
-from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Dense, Dropout, Flatten, BatchNormalization
-from tensorflow.keras.optimizers import Adam
+from keras.models import Sequential, Model
+from keras.layers import Dense, Dropout, Flatten, BatchNormalization
+from keras.optimizers import Adam
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.applications import VGG16
 from tensorflow.keras import regularizers
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 
-
-import os
 import shutil
 
 def delete_folder(folder_path):
@@ -130,25 +131,25 @@ all_train_images = load_image_paths(train_dir)
 all_validate_images = load_image_paths(val_dir)
 all_test_images = load_image_paths(test_dir)
 
-# # Select a random sample of 300 images
-# selected_train_image_paths = np.random.choice(all_train_images, size=300, replace=False)
-# selected_validate_image_paths = np.random.choice(all_validate_images, size=300, replace=False)
-# selected_test_image_paths = np.random.choice(all_test_images, size=300, replace=False)
+ # Select a random sample of 300 images
+selected_train_image_paths = np.random.choice(all_train_images, size=3000, replace=False)
+selected_validate_image_paths = np.random.choice(all_validate_images, size=1000, replace=False)
+selected_test_image_paths = np.random.choice(all_test_images, size=1500, replace=False)
 
-# # Create a directory to store the sampled images
-# sample_train_dir = '/content/sampled_train'
-# sample_validate_dir = '/content/sampled_validate'
-# sample_test_dir = '/content/sampled_test'
-# delete_folder(sample_train_dir)
-# delete_folder(sample_validate_dir)
-# delete_folder(sample_test_dir)
-# os.makedirs(sample_train_dir, exist_ok=True)
-# os.makedirs(sample_validate_dir, exist_ok=True)
-# os.makedirs(sample_test_dir, exist_ok=True)
+ # Create a directory to store the sampled images
+sample_train_dir = 'data/sampled_train'
+sample_validate_dir = 'data/sampled_validate'
+sample_test_dir = 'data/sampled_test'
+delete_folder(sample_train_dir)
+delete_folder(sample_validate_dir)
+delete_folder(sample_test_dir)
+os.makedirs(sample_train_dir, exist_ok=True)
+os.makedirs(sample_validate_dir, exist_ok=True)
+os.makedirs(sample_test_dir, exist_ok=True)
 
-# organize_images_by_class(sample_train_dir, selected_train_image_paths)
-# organize_images_by_class(sample_validate_dir, selected_validate_image_paths)
-# organize_images_by_class(sample_test_dir, selected_validate_image_paths)
+organize_images_by_class(sample_train_dir, selected_train_image_paths)
+organize_images_by_class(sample_validate_dir, selected_validate_image_paths)
+organize_images_by_class(sample_test_dir, selected_test_image_paths)
 
 # print(selected_train_image_paths[:10])  # Display the first 10 paths
 
@@ -175,12 +176,12 @@ size_VGG16 = (224, 224, 3)
 BATCH_SIZE = 32
 weight_decay = 0.001
 LEARNING_RATE = 0.001
-NUM_CLASSES = 3
+NUM_CLASSES = 4
 
 # Use the sampled images for training
-train_dir = train_dir
-val_dir = val_dir
-test_dir = test_dir
+train_dir =sample_train_dir
+val_dir = sample_validate_dir
+test_dir = sample_test_dir
 
 # Data Augmentation and Preprocessing
 train_datagen = ImageDataGenerator(
@@ -241,19 +242,28 @@ model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['ac
 
 # Define callbacks
 early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
-model_checkpoint = ModelCheckpoint('best_model.h5', monitor='val_loss', save_best_only=True)
+model_checkpoint = ModelCheckpoint('best_model.keras', monitor='val_loss', save_best_only=True)
 reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3, min_lr=1e-6)
 
-# Train the model
-history = model.fit(
-    train_generator,
-    steps_per_epoch=len(train_generator),
-    #steps_per_epoch=30,
-    epochs=10,
-    validation_data=validation_generator,
-    validation_steps=len(validation_generator),
-    callbacks=[early_stopping, model_checkpoint, reduce_lr]
-)
+try:
+
+	# Train the model
+	history = model.fit(
+    	train_generator,
+    	steps_per_epoch=len(train_generator),
+    	#steps_per_epoch=30,
+    	epochs=10,
+    	validation_data=validation_generator,
+    	validation_steps=len(validation_generator),
+    	callbacks=[early_stopping, model_checkpoint, reduce_lr]
+	)
+
+except Exception as e:
+	print("Error occured during training:", e)
+
+
+finally:
+	pass
 
 # Plot training history
 plt.plot(history.history['loss'], label='train_loss')
